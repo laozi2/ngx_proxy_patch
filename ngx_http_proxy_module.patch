@@ -1,0 +1,38 @@
+--- nginx-1.10.3/src/http/modules/ngx_http_proxy_module.c	2017-01-31 23:01:11.000000000 +0800
++++ nginx-1.10.3-dev/src/http/modules/ngx_http_proxy_module.c	2020-09-30 10:10:28.744698917 +0800
+@@ -1144,6 +1144,10 @@
+     ngx_http_script_engine_t      e, le;
+     ngx_http_proxy_loc_conf_t    *plcf;
+     ngx_http_script_len_code_pt   lcode;
++    ngx_str_t                     prl_str = ngx_string("proxy_req_line"); 
++    u_char*                       p_prl_str;
++    ngx_uint_t                    hash; 
++    ngx_http_variable_value_t    *prl_var; 
+ 
+     u = r->upstream;
+ 
+@@ -1208,6 +1212,13 @@
+         return NGX_ERROR;
+     }
+ 
++    p_prl_str = ngx_pnalloc(r->pool, prl_str.len);
++    hash = ngx_hash_strlow(p_prl_str, prl_str.data, prl_str.len);
++    prl_var = ngx_http_get_variable(r, &prl_str, hash);
++    if (prl_var != NULL && prl_var->not_found != 1) {
++        uri_len += prl_var->len;
++    }
++
+     len += uri_len;
+ 
+     ngx_memzero(&le, sizeof(ngx_http_script_engine_t));
+@@ -1296,6 +1307,10 @@
+     b->last = ngx_copy(b->last, method.data, method.len);
+     *b->last++ = ' ';
+ 
++    if (prl_var != NULL && prl_var->not_found != 1) {
++        b->last = ngx_copy(b->last, prl_var->data, prl_var->len);
++    }
++
+     u->uri.data = b->last;
+ 
+     if (plcf->proxy_lengths && ctx->vars.uri.len) {
